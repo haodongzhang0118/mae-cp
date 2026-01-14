@@ -64,12 +64,12 @@ def test_dataset_adapter():
     
     try:
         from mae_cp_dataset import MAE_CPDataset
-        from dinov3.data.datasets.cp_datasets import DATASET_STATS
+        from cp_datasets import DATASET_STATS
         
         # Test with a small MedMNIST dataset
         dataset = MAE_CPDataset(
             dataset_name="bloodmnist",
-            root="/tmp/test_data",  # Will fail if data not present, but that's ok
+            root="/root/data/medmnist",  # Will fail if data not present, but that's ok
             split="TRAIN",
             limit_data=10,
         )
