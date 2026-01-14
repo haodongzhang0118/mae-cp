@@ -324,9 +324,7 @@ def train_mae_cp(
         metrics={
             "top1": torchmetrics.classification.MulticlassAccuracy(num_classes),
         },
-        optim={
-            "optimizer": {"type": "SGD", "lr": 0.1, "momentum": 0.9},
-        },
+        optimizer={"type": "SGD", "lr": 0.1, "momentum": 0.9},
     )
     
     # Create callbacks
