@@ -180,8 +180,9 @@ def train_mae_cp(
     
     logger.info(f"Starting MAE-CP training: {exp_name}")
     
-    # Create output directory
-    output_path = Path(output_dir) / exp_name
+    # Create hierarchical output directory: output_dir/dataset_name/model_size/limit_data
+    limit_str = str(limit_data) if limit_data else "full"
+    output_path = Path(output_dir) / dataset_name / model_size / limit_str
     output_path.mkdir(parents=True, exist_ok=True)
     
     # Create dataset
