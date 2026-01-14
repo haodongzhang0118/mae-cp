@@ -42,6 +42,7 @@ echo "📚 Step 5/5: Installing project dependencies..."
 # Enter stable-pretraining directory and install
 cd stable-pretraining/
 echo "Installing stable-pretraining with all extensions..."
+uv pip install torch torchvision torchaudio
 uv pip install -e ".[all]"
 
 # Install other dependencies
