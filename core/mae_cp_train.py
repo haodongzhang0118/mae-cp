@@ -277,7 +277,17 @@ def train_mae_cp(
     
     # Get number of classes for probing
     sample = train_dataset[0]
-    num_classes = len(set([train_dataset[i]["label"] for i in range(min(1000, len(train_dataset)))]))
+    # Convert labels to scalars (handle numpy arrays)
+    labels = []
+    for i in range(min(1000, len(train_dataset))):
+        label = train_dataset[i]["label"]
+        # Handle numpy array labels
+        if hasattr(label, 'item'):
+            label = label.item()
+        elif hasattr(label, '__len__') and len(label) == 1:
+            label = label[0]
+        labels.append(label)
+    num_classes = len(set(labels))
     logger.info(f"Detected {num_classes} classes")
     
     # Create module
@@ -338,6 +348,15 @@ def train_mae_cp(
         pl_logger = CSVLogger(save_dir=output_dir, name=exp_name)
     
     # Create trainer
+    # Disable validation if no validation loader available
+    if val_loader is None:
+        num_sanity_val_steps = 0
+        limit_val_batches = 0
+        logger.info("No validation set available, disabling validation")
+    else:
+        num_sanity_val_steps = 1
+        limit_val_batches = 1.0
+    
     trainer = pl.Trainer(
         max_epochs=epochs,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
@@ -346,7 +365,8 @@ def train_mae_cp(
         callbacks=callbacks,
         logger=pl_logger,
         default_root_dir=output_dir,
-        num_sanity_val_steps=1,
+        num_sanity_val_steps=num_sanity_val_steps,
+        limit_val_batches=limit_val_batches,
         log_every_n_steps=10,
         enable_checkpointing=True,
     )
