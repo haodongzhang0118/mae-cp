@@ -330,7 +330,12 @@ def train_mae_cp(
     # Create callbacks
     callbacks = [
         linear_probe,
-        spt.callbacks.RankMe(name="rankme", input="embedding"),
+        spt.callbacks.RankMe(
+            name="rankme", 
+            target="embedding",
+            queue_length=8192,
+            target_shape=hidden_dim,
+        ),
     ]
     
     # Create logger
