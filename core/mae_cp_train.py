@@ -227,7 +227,7 @@ def train_mae_cp(
         )
         val_loader = torch.utils.data.DataLoader(
             dataset=val_dataset,
-            batch_size=batch_size * 2,
+            batch_size=batch_size,
             num_workers=num_workers,
             shuffle=False,
             pin_memory=True,

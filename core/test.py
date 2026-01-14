@@ -203,6 +203,7 @@ def test_quick_training():
             logger=False,
             enable_checkpointing=False,
             num_sanity_val_steps=0,
+            limit_val_batches=0,  # Disable validation entirely
         )
         logger.info(f"✓ Created trainer")
         
