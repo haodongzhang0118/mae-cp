@@ -362,7 +362,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MAE Continue Pretraining")
     
     # Dataset parameters
-    parser.add_argument("--dataset", type=str, default="bloodmnist",
+    parser.add_argument("--dataset", dest="dataset_name", type=str, default="bloodmnist",
                        help="Dataset name")
     parser.add_argument("--data_root", type=str, default="/root/data",
                        help="Root directory for datasets")
