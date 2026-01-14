@@ -60,8 +60,14 @@ def convert_hf_to_mae(hf_state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch
     HF: vit.embeddings.position_embeddings -> MAE: pos_embed
     HF: vit.encoder.layer.{i}.* -> MAE: blocks.{i}.*
     HF: decoder.* -> MAE: decoder_*
+    
+    HF uses separate query, key, value weights, but MAE uses fused qkv weights.
+    This function handles the merging of q, k, v -> qkv.
     """
     mae_state_dict = {}
+    
+    # First pass: collect all keys and identify qkv components
+    qkv_components = {}  # Store q, k, v separately to merge later
     
     for key, value in hf_state_dict.items():
         new_key = key
@@ -76,14 +82,17 @@ def convert_hf_to_mae(hf_state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch
                 "vit.embeddings.patch_embeddings.projection", 
                 "patch_embed.proj"
             )
+            mae_state_dict[new_key] = value
         
         # Position embedding conversion
         elif "vit.embeddings.position_embeddings" in key:
             new_key = "pos_embed"
+            mae_state_dict[new_key] = value
         
         # CLS token conversion
         elif "vit.embeddings.cls_token" in key:
             new_key = "cls_token"
+            mae_state_dict[new_key] = value
         
         # Encoder blocks conversion
         elif "vit.encoder.layer" in key:
@@ -92,8 +101,30 @@ def convert_hf_to_mae(hf_state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch
             layer_idx = parts[3]  # vit.encoder.layer.{idx}
             rest = ".".join(parts[4:])
             
-            # Convert attention/mlp naming
-            rest = rest.replace("attention.attention", "attn")
+            # Handle Q, K, V separately - need to merge into qkv
+            if "attention.attention.query" in rest:
+                param_type = "weight" if "weight" in rest else "bias"
+                block_key = f"blocks.{layer_idx}.attn.qkv.{param_type}"
+                if block_key not in qkv_components:
+                    qkv_components[block_key] = {}
+                qkv_components[block_key]["query"] = value
+                continue
+            elif "attention.attention.key" in rest:
+                param_type = "weight" if "weight" in rest else "bias"
+                block_key = f"blocks.{layer_idx}.attn.qkv.{param_type}"
+                if block_key not in qkv_components:
+                    qkv_components[block_key] = {}
+                qkv_components[block_key]["key"] = value
+                continue
+            elif "attention.attention.value" in rest:
+                param_type = "weight" if "weight" in rest else "bias"
+                block_key = f"blocks.{layer_idx}.attn.qkv.{param_type}"
+                if block_key not in qkv_components:
+                    qkv_components[block_key] = {}
+                qkv_components[block_key]["value"] = value
+                continue
+            
+            # Convert other attention/mlp naming
             rest = rest.replace("attention.output.dense", "attn.proj")
             rest = rest.replace("intermediate.dense", "mlp.fc1")
             rest = rest.replace("output.dense", "mlp.fc2")
@@ -101,22 +132,27 @@ def convert_hf_to_mae(hf_state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch
             rest = rest.replace("layernorm_after", "norm2")
             
             new_key = f"blocks.{layer_idx}.{rest}"
+            mae_state_dict[new_key] = value
         
         # Encoder norm conversion
         elif "vit.layernorm" in key:
             new_key = key.replace("vit.layernorm", "norm")
+            mae_state_dict[new_key] = value
         
         # Decoder embedding conversion
         elif "decoder.decoder_embed" in key:
             new_key = key.replace("decoder.decoder_embed", "decoder_embed")
+            mae_state_dict[new_key] = value
         
         # Decoder position embedding
         elif "decoder.decoder_pos_embed" in key:
             new_key = "decoder_pos_embed"
+            mae_state_dict[new_key] = value
         
         # Mask token conversion
         elif "decoder.mask_token" in key:
             new_key = "mask_token"
+            mae_state_dict[new_key] = value
         
         # Decoder blocks conversion
         elif "decoder.decoder_layers" in key:
@@ -124,8 +160,30 @@ def convert_hf_to_mae(hf_state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch
             layer_idx = parts[2]  # decoder.decoder_layers.{idx}
             rest = ".".join(parts[3:])
             
-            # Convert attention/mlp naming
-            rest = rest.replace("attention.attention", "attn")
+            # Handle Q, K, V separately - need to merge into qkv
+            if "attention.attention.query" in rest:
+                param_type = "weight" if "weight" in rest else "bias"
+                block_key = f"decoder_blocks.{layer_idx}.attn.qkv.{param_type}"
+                if block_key not in qkv_components:
+                    qkv_components[block_key] = {}
+                qkv_components[block_key]["query"] = value
+                continue
+            elif "attention.attention.key" in rest:
+                param_type = "weight" if "weight" in rest else "bias"
+                block_key = f"decoder_blocks.{layer_idx}.attn.qkv.{param_type}"
+                if block_key not in qkv_components:
+                    qkv_components[block_key] = {}
+                qkv_components[block_key]["key"] = value
+                continue
+            elif "attention.attention.value" in rest:
+                param_type = "weight" if "weight" in rest else "bias"
+                block_key = f"decoder_blocks.{layer_idx}.attn.qkv.{param_type}"
+                if block_key not in qkv_components:
+                    qkv_components[block_key] = {}
+                qkv_components[block_key]["value"] = value
+                continue
+            
+            # Convert other attention/mlp naming
             rest = rest.replace("attention.output.dense", "attn.proj")
             rest = rest.replace("intermediate.dense", "mlp.fc1")
             rest = rest.replace("output.dense", "mlp.fc2")
@@ -133,16 +191,30 @@ def convert_hf_to_mae(hf_state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch
             rest = rest.replace("layernorm_after", "norm2")
             
             new_key = f"decoder_blocks.{layer_idx}.{rest}"
+            mae_state_dict[new_key] = value
         
         # Decoder norm conversion
         elif "decoder.decoder_norm" in key:
             new_key = key.replace("decoder.decoder_norm", "decoder_norm")
+            mae_state_dict[new_key] = value
         
         # Decoder prediction head
         elif "decoder.decoder_pred" in key:
             new_key = key.replace("decoder.decoder_pred", "decoder_pred")
-        
-        mae_state_dict[new_key] = value
+            mae_state_dict[new_key] = value
+    
+    # Second pass: merge qkv components
+    for qkv_key, components in qkv_components.items():
+        if len(components) == 3:  # Should have q, k, v
+            # Concatenate q, k, v along dim 0 (output dimension)
+            qkv_merged = torch.cat([
+                components["query"],
+                components["key"],
+                components["value"]
+            ], dim=0)
+            mae_state_dict[qkv_key] = qkv_merged
+        else:
+            logger.warning(f"Incomplete qkv components for {qkv_key}: {components.keys()}")
     
     return mae_state_dict
 
