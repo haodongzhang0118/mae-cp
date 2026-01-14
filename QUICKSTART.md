@@ -6,26 +6,25 @@
 
 ```bash
 # 进入 stable-pretraining 目录
-cd /Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3/stable-pretraining
+cd stable-pretraining/
 
 # 安装 stable-pretraining
-pip install -e ".[vision,tracking]"
+uv pip install -e ".[all]"
 
 # 安装其他依赖
-pip install transformers datasets==2.20.0
+pip install transformers datasets==2.20.0 medmnist
 ```
 
 ### 2. 测试安装
 
 ```bash
-cd /Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3
-python mae_cp/test_mae_cp.py
+python core/test.py
 ```
 
 ### 3. 运行单个实验
 
 ```bash
-python mae_cp/mae_cp_train.py \
+python core/mae_cp_train.py \
     --dataset bloodmnist \
     --data_root /root/data \
     --limit_data 100 \
@@ -40,7 +39,7 @@ python mae_cp/mae_cp_train.py \
 
 ```bash
 # 编辑配置
-vim mae_cp/run_mae_cp_experiments.sh
+vim core/run_mae_cp_experiments.sh
 
 # 运行
 ./mae_cp/run_mae_cp_experiments.sh

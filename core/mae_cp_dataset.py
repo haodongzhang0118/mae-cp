@@ -6,16 +6,13 @@ compatible with stable-pretraining's data format.
 """
 
 import sys
-sys.path.append("/Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3")
-
 from torch.utils.data import Dataset
 from typing import Dict, Any, Optional, Callable
-from dinov3.data.datasets.cp_datasets import CPDataset, DATASET_STATS
-
+from cp_datasets import CPDataset, DATASET_STATS
 
 class MAE_CPDataset(Dataset):
     """
-    Wrapper around DINOv3 CPDataset for MAE-CP training.
+    CPDataset for MAE-CP training.
     
     Returns dictionary with keys:
         - 'image': Tensor of shape (C, H, W)
@@ -130,24 +127,4 @@ def create_mae_cp_dataloader(
     
     return dataloader
 
-
-if __name__ == "__main__":
-    # Test the dataset
-    import torch
-    
-    dataset = MAE_CPDataset(
-        dataset_name="bloodmnist",
-        root="/root/data/bloodmnist",
-        split="TRAIN",
-        limit_data=100,
-    )
-    
-    print(f"Dataset size: {len(dataset)}")
-    print(f"Dataset stats: {dataset.get_stats()}")
-    
-    # Get a sample
-    sample = dataset[0]
-    print(f"Sample keys: {sample.keys()}")
-    print(f"Image shape: {sample['image'].size if hasattr(sample['image'], 'size') else type(sample['image'])}")
-    print(f"Label: {sample['label']}")
 

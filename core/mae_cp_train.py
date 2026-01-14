@@ -5,21 +5,17 @@ This script trains MAE on domain-specific datasets for continue pretraining,
 similar to DINOv3-CP but using MAE's reconstruction objective.
 """
 
-import sys
-sys.path.append("/Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3/stable-pretraining")
-sys.path.append("/Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3")
-
 import torch
 import lightning as pl
 import torchmetrics
-from pathlib import Path
 import logging
 
 import stable_pretraining as spt
 from stable_pretraining.data import transforms
 
+from pathlib import Path
 from mae_cp_dataset import MAE_CPDataset
-from load_mae_weights import load_pretrained_mae_weights, PRETRAINED_MODELS
+from load_mae_weights import load_pretrained_mae_weights
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

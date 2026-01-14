@@ -7,8 +7,8 @@
 set -e  # Exit on error
 
 # Configuration
-export PYTHONPATH="/Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3:$PYTHONPATH"
 export HF_TOKEN="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # Replace with your token
+export HUGGINGFACE_HUB_TOKEN="${HF_TOKEN}"
 
 # Hardware configuration
 NUM_GPUS=1
@@ -39,7 +39,6 @@ DATASETS=(
     "galaxy10_decals:10"
     "bloodmnist:8"
     "pathmnist:9"
-    "chestmnist:14"
     "dermamnist:7"
     "octmnist:4"
     "pneumoniamnist:2"
@@ -62,7 +61,6 @@ SAMPLE_SIZES=(
     2500
     5000
     10000
-    "full"
 )
 
 # Function to run a single experiment
@@ -92,7 +90,7 @@ run_experiment() {
     echo "================================================"
     
     # Run training
-    python mae_cp/mae_cp_train.py \
+    python core/mae_cp_train.py \
         --dataset "$dataset_name" \
         --data_root "$DATA_ROOT" \
         $limit_arg \
