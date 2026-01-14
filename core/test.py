@@ -8,10 +8,6 @@ This script tests:
 4. Training loop (quick test)
 """
 
-import sys
-sys.path.append("/Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3/stable-pretraining")
-sys.path.append("/Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3")
-
 import torch
 import logging
 

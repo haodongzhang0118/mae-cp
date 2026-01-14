@@ -8,7 +8,7 @@ from torchvision import transforms
 from PIL import Image
 from typing import Tuple, Any
 
-logger = logging.getLogger("dinov3")
+logger = logging.getLogger("mae_cp")
 
 
 def is_cp_dataset(s: str) -> bool:
