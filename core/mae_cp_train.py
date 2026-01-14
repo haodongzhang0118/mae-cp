@@ -185,10 +185,13 @@ def train_mae_cp(
     output_path = Path(output_dir) / dataset_name / model_size / limit_str
     output_path.mkdir(parents=True, exist_ok=True)
     
+    # Ensure data root directory exists
+    Path(data_root).mkdir(parents=True, exist_ok=True)
+    
     # Create dataset
     dataset = MAE_CPDataset(
         dataset_name=dataset_name,
-        root=f"{data_root}/{dataset_name}",
+        root=data_root,
         split="TRAIN",
         limit_data=limit_data,
     )
@@ -202,7 +205,7 @@ def train_mae_cp(
     # Create dataloaders
     train_dataset = MAE_CPDataset(
         dataset_name=dataset_name,
-        root=f"{data_root}/{dataset_name}",
+        root=data_root,
         split="TRAIN",
         limit_data=limit_data,
         transform=train_transform,
@@ -221,7 +224,7 @@ def train_mae_cp(
     try:
         val_dataset = MAE_CPDataset(
             dataset_name=dataset_name,
-            root=f"{data_root}/{dataset_name}",
+            root=data_root,
             split="VAL",
             transform=val_transform,
         )
