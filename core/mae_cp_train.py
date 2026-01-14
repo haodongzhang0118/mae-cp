@@ -303,10 +303,8 @@ def train_mae_cp(
             },
             "scheduler": {
                 "type": "LinearWarmupCosineAnnealing",
-                "warmup_epochs": warmup_epochs,
-                "max_epochs": epochs,
             },
-            "interval": "epoch",
+            "interval": "step",  # Step-based scheduling (not epoch-based)
         },
         # Store hyperparameters for forward function
         norm_pix_loss=norm_pix_loss,
