@@ -239,9 +239,9 @@ def train_mae_cp(
     )
     
     # Create training dataloader with InfiniteSampler
-    # This allows training with fixed steps regardless of dataset size
-    # num_samples: total samples needed = max_steps * batch_size
-    num_samples_needed = max_steps * batch_size
+    # This allows training with fixed steps per epoch regardless of dataset size
+    # num_samples: samples per EPOCH = steps_per_epoch * batch_size
+    num_samples_per_epoch = steps_per_epoch * batch_size
     
     train_loader = create_infinite_dataloader(
         dataset=train_dataset,
@@ -253,13 +253,15 @@ def train_mae_cp(
         world_size=1,
         drop_last=True,
         pin_memory=True,
-        num_samples=num_samples_needed,  # Specify total samples for fixed iteration count
+        num_samples=num_samples_per_epoch,  # Samples per EPOCH, not total training
     )
     
     logger.info(f"Created infinite dataloader for training")
-    logger.info(f"  - Total samples per training: {num_samples_needed}")
-    logger.info(f"  - Batches per training: {max_steps}")
-    logger.info(f"  - Dataset will cycle {num_samples_needed / dataset_size:.1f}x")
+    logger.info(f"  - Samples per epoch: {num_samples_per_epoch}")
+    logger.info(f"  - Steps per epoch: {steps_per_epoch}")
+    logger.info(f"  - Total epochs: {epochs}")
+    logger.info(f"  - Total steps: {max_steps}")
+    logger.info(f"  - Dataset will cycle {num_samples_per_epoch / dataset_size:.1f}x per epoch")
     
     # Validation loader (if available)
     try:
@@ -409,50 +411,33 @@ def train_mae_cp(
     if val_loader is None:
         num_sanity_val_steps = 0
         limit_val_batches = 0
-        check_val_every_n_epoch = None
-        val_check_interval = None
         logger.info("No validation set available, disabling validation")
-        
-        trainer = pl.Trainer(
-            max_steps=max_steps,  # Train for fixed number of steps (not epochs)
-            max_epochs=-1,  # Disable epoch-based termination
-            accelerator="gpu" if torch.cuda.is_available() else "cpu",
-            devices=devices,
-            precision=precision,
-            callbacks=callbacks,
-            logger=pl_logger,
-            default_root_dir=str(output_path),
-            num_sanity_val_steps=num_sanity_val_steps,
-            limit_val_batches=limit_val_batches,
-            log_every_n_steps=10,
-            enable_checkpointing=True,
-        )
     else:
         num_sanity_val_steps = 1
         limit_val_batches = 1.0
-        # Validate every "epoch" (every steps_per_epoch steps)
-        val_check_interval = steps_per_epoch
-        logger.info(f"Validation every {steps_per_epoch} steps")
-        
-        trainer = pl.Trainer(
-            max_steps=max_steps,  # Train for fixed number of steps (not epochs)
-            max_epochs=-1,  # Disable epoch-based termination
-            accelerator="gpu" if torch.cuda.is_available() else "cpu",
-            devices=devices,
-            precision=precision,
-            callbacks=callbacks,
-            logger=pl_logger,
-            default_root_dir=str(output_path),
-            num_sanity_val_steps=num_sanity_val_steps,
-            limit_val_batches=limit_val_batches,
-            val_check_interval=val_check_interval,
-            log_every_n_steps=10,
-            enable_checkpointing=True,
-        )
+        logger.info(f"Validation enabled, running every epoch")
+    
+    # Create trainer with epoch-based training
+    # Each epoch = steps_per_epoch steps (controlled by DataLoader length)
+    trainer = pl.Trainer(
+        max_epochs=epochs,  # Train for specified number of epochs
+        accelerator="gpu" if torch.cuda.is_available() else "cpu",
+        devices=devices,
+        precision=precision,
+        callbacks=callbacks,
+        logger=pl_logger,
+        default_root_dir=str(output_path),
+        num_sanity_val_steps=num_sanity_val_steps,
+        limit_val_batches=limit_val_batches,
+        log_every_n_steps=10,
+        enable_checkpointing=True,
+    )
     
     logger.info(f"Trainer configured:")
-    logger.info(f"  - Max steps: {max_steps}")
-    logger.info(f"  - Validation every: {val_check_interval} steps" if val_check_interval else "  - Validation: disabled")
+    logger.info(f"  - Max epochs: {epochs}")
+    logger.info(f"  - Steps per epoch: {steps_per_epoch}")
+    logger.info(f"  - Total steps: {max_steps}")
+    logger.info(f"  - Validation: {'enabled (every epoch)' if val_loader else 'disabled'}")
     
     # Train
     logger.info("Starting training...")
@@ -526,4 +511,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     train_mae_cp(**vars(args))
-
