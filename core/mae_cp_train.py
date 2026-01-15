@@ -342,10 +342,28 @@ def train_mae_cp(
     else:
         logger.info(f"Using num_classes={num_classes} from dataset stats")
     
-    # Create module
+    # Create module with hyperparameters for logging
+    hparams = {
+        "dataset": dataset_name,
+        "model_size": model_size,
+        "pretrained": pretrained,
+        "limit_data": limit_data,
+        "batch_size": batch_size,
+        "epochs": epochs,
+        "steps_per_epoch": steps_per_epoch,
+        "warmup_epochs": warmup_epochs,
+        "lr": lr,
+        "weight_decay": weight_decay,
+        "mask_ratio": mask_ratio,
+        "norm_pix_loss": norm_pix_loss,
+        "num_classes": num_classes,
+        "hidden_dim": hidden_dim,
+    }
+    
     module = spt.Module(
         backbone=backbone,
         forward=mae_cp_forward,
+        hparams=hparams,  # Add hyperparameters for logging
         optim={
             "optimizer": {
                 "type": "AdamW",
@@ -387,12 +405,6 @@ def train_mae_cp(
         },
         optimizer={"type": "SGD", "lr": 0.1, "momentum": 0.9},
     )
-    
-    # Remove None values from metrics
-    if linear_probe.metrics["train"]["top5"] is None:
-        del linear_probe.metrics["train"]["top5"]
-    if linear_probe.metrics["val"]["top5"] is None:
-        del linear_probe.metrics["val"]["top5"]
     
     # Create callbacks
     callbacks = [
