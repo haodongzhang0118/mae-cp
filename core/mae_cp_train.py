@@ -412,29 +412,43 @@ def train_mae_cp(
         check_val_every_n_epoch = None
         val_check_interval = None
         logger.info("No validation set available, disabling validation")
+        
+        trainer = pl.Trainer(
+            max_steps=max_steps,  # Train for fixed number of steps (not epochs)
+            max_epochs=-1,  # Disable epoch-based termination
+            accelerator="gpu" if torch.cuda.is_available() else "cpu",
+            devices=devices,
+            precision=precision,
+            callbacks=callbacks,
+            logger=pl_logger,
+            default_root_dir=str(output_path),
+            num_sanity_val_steps=num_sanity_val_steps,
+            limit_val_batches=limit_val_batches,
+            log_every_n_steps=10,
+            enable_checkpointing=True,
+        )
     else:
         num_sanity_val_steps = 1
         limit_val_batches = 1.0
         # Validate every "epoch" (every steps_per_epoch steps)
-        check_val_every_n_epoch = None
         val_check_interval = steps_per_epoch
         logger.info(f"Validation every {steps_per_epoch} steps")
-    
-    trainer = pl.Trainer(
-        max_steps=max_steps,  # Train for fixed number of steps (not epochs)
-        accelerator="gpu" if torch.cuda.is_available() else "cpu",
-        devices=devices,
-        precision=precision,
-        callbacks=callbacks,
-        logger=pl_logger,
-        default_root_dir=str(output_path),
-        num_sanity_val_steps=num_sanity_val_steps,
-        limit_val_batches=limit_val_batches,
-        val_check_interval=val_check_interval,
-        check_val_every_n_epoch=check_val_every_n_epoch,
-        log_every_n_steps=10,
-        enable_checkpointing=True,
-    )
+        
+        trainer = pl.Trainer(
+            max_steps=max_steps,  # Train for fixed number of steps (not epochs)
+            max_epochs=-1,  # Disable epoch-based termination
+            accelerator="gpu" if torch.cuda.is_available() else "cpu",
+            devices=devices,
+            precision=precision,
+            callbacks=callbacks,
+            logger=pl_logger,
+            default_root_dir=str(output_path),
+            num_sanity_val_steps=num_sanity_val_steps,
+            limit_val_batches=limit_val_batches,
+            val_check_interval=val_check_interval,
+            log_every_n_steps=10,
+            enable_checkpointing=True,
+        )
     
     logger.info(f"Trainer configured:")
     logger.info(f"  - Max steps: {max_steps}")
