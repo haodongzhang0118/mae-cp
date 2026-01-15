@@ -342,11 +342,12 @@ def train_mae_cp(
         pl_logger = WandbLogger(
             project=wandb_project,
             name=exp_name,
-            save_dir=output_dir,
+            save_dir=str(output_path),
         )
     else:
         from lightning.pytorch.loggers import CSVLogger
-        pl_logger = CSVLogger(save_dir=output_dir, name=exp_name)
+        # Use output_path as save_dir, no name to avoid extra nesting
+        pl_logger = CSVLogger(save_dir=str(output_path.parent), name=output_path.name)
     
     # Create trainer
     # Disable validation if no validation loader available
@@ -365,7 +366,7 @@ def train_mae_cp(
         precision=precision,
         callbacks=callbacks,
         logger=pl_logger,
-        default_root_dir=output_dir,
+        default_root_dir=str(output_path),
         num_sanity_val_steps=num_sanity_val_steps,
         limit_val_batches=limit_val_batches,
         log_every_n_steps=10,
