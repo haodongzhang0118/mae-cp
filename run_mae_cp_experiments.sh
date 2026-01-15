@@ -15,8 +15,9 @@ NUM_GPUS=1
 NUM_WORKERS=8
 PRECISION="16-mixed"
 
-# Training configuration
+# Training configuration (matching DINOv3-CP)
 EPOCHS=100
+STEPS_PER_EPOCH=16  # OFFICIAL_EPOCH_LENGTH (like DINOv3-CP)
 BATCH_SIZE=256
 LR=1.5e-4
 WEIGHT_DECAY=0.05
@@ -87,6 +88,7 @@ run_experiment() {
     echo "Dataset: $dataset_name"
     echo "Sample size: $limit_data"
     echo "Num classes: $num_classes"
+    echo "Total steps: $((EPOCHS * STEPS_PER_EPOCH))"
     echo "================================================"
     
     # Run training
@@ -100,6 +102,7 @@ run_experiment() {
         --mask_ratio "$MASK_RATIO" \
         --batch_size "$BATCH_SIZE" \
         --epochs "$EPOCHS" \
+        --steps_per_epoch "$STEPS_PER_EPOCH" \
         --lr "$LR" \
         --weight_decay "$WEIGHT_DECAY" \
         --warmup_epochs "$WARMUP_EPOCHS" \

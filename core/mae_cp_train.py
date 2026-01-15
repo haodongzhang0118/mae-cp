@@ -16,6 +16,7 @@ from stable_pretraining.data import transforms
 from pathlib import Path
 from mae_cp_dataset import MAE_CPDataset
 from load_mae_weights import load_pretrained_mae_weights
+from infinite_sampler import create_infinite_dataloader
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -131,6 +132,7 @@ def train_mae_cp(
     # Training parameters
     batch_size: int = 256,
     epochs: int = 100,
+    steps_per_epoch: int = 16,  # OFFICIAL_EPOCH_LENGTH (like DINOv3-CP)
     lr: float = 1.5e-4,
     weight_decay: float = 0.05,
     warmup_epochs: int = 10,
@@ -162,6 +164,7 @@ def train_mae_cp(
         norm_pix_loss: Whether to normalize pixel values in loss
         batch_size: Training batch size
         epochs: Number of training epochs
+        steps_per_epoch: Number of steps per epoch (like DINOv3's OFFICIAL_EPOCH_LENGTH)
         lr: Learning rate
         weight_decay: Weight decay
         warmup_epochs: Number of warmup epochs
@@ -178,7 +181,17 @@ def train_mae_cp(
         limit_str = f"_{limit_data}" if limit_data else "_full"
         exp_name = f"{dataset_name}_{model_size}{limit_str}"
     
+    # Calculate training steps (like DINOv3-CP)
+    max_steps = epochs * steps_per_epoch
+    warmup_steps = warmup_epochs * steps_per_epoch
+    
     logger.info(f"Starting MAE-CP training: {exp_name}")
+    logger.info(f"Training configuration:")
+    logger.info(f"  - Epochs: {epochs}")
+    logger.info(f"  - Steps per epoch: {steps_per_epoch}")
+    logger.info(f"  - Total steps: {max_steps}")
+    logger.info(f"  - Warmup steps: {warmup_steps}")
+    logger.info(f"  - Batch size: {batch_size}")
     
     # Create hierarchical output directory: output_dir/dataset_name/model_size/limit_data
     limit_str = str(limit_data) if limit_data else "full"
@@ -197,12 +210,26 @@ def train_mae_cp(
     )
     
     dataset_stats = dataset.get_stats()
-    logger.info(f"Dataset: {dataset_name}, Size: {len(dataset)}, Stats: {dataset_stats}")
+    dataset_size = len(dataset)
+    logger.info(f"Dataset: {dataset_name}, Size: {dataset_size}, Stats: {dataset_stats}")
+    
+    # Check if dataset is smaller than batch size (common in few-shot)
+    if dataset_size < batch_size:
+        logger.warning(
+            f"Dataset size ({dataset_size}) < Batch size ({batch_size})! "
+            f"Using InfiniteSampler to repeat samples and fill batches."
+        )
+        samples_per_epoch = steps_per_epoch * batch_size
+        repetitions_per_epoch = samples_per_epoch / dataset_size
+        logger.info(
+            f"Each sample will be seen ~{repetitions_per_epoch:.1f} times per epoch "
+            f"(~{repetitions_per_epoch * epochs:.0f} times total)"
+        )
     
     # Create transforms
     train_transform, val_transform = create_mae_cp_transforms(dataset_stats)
     
-    # Create dataloaders
+    # Create training dataset
     train_dataset = MAE_CPDataset(
         dataset_name=dataset_name,
         root=data_root,
@@ -211,14 +238,21 @@ def train_mae_cp(
         transform=train_transform,
     )
     
-    train_loader = torch.utils.data.DataLoader(
+    # Create training dataloader with InfiniteSampler
+    # This allows training with fixed steps regardless of dataset size
+    train_loader = create_infinite_dataloader(
         dataset=train_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
         shuffle=True,
+        seed=0,  # For reproducibility
+        rank=0,  # Single GPU for now (TODO: add distributed support)
+        world_size=1,
         drop_last=True,
         pin_memory=True,
     )
+    
+    logger.info(f"Created infinite dataloader for training")
     
     # Validation loader (if available)
     try:
@@ -303,6 +337,8 @@ def train_mae_cp(
             },
             "scheduler": {
                 "type": "LinearWarmupCosineAnnealing",
+                "warmup_epochs": warmup_epochs,
+                "max_epochs": epochs,
             },
             "interval": "step",  # Step-based scheduling (not epoch-based)
         },
@@ -349,18 +385,26 @@ def train_mae_cp(
         # Use output_path as save_dir, no name to avoid extra nesting
         pl_logger = CSVLogger(save_dir=str(output_path.parent), name=output_path.name)
     
-    # Create trainer
+    # Create trainer with step-based training (like DINOv3-CP)
+    # Use max_steps instead of max_epochs for fixed iteration count
+    
     # Disable validation if no validation loader available
     if val_loader is None:
         num_sanity_val_steps = 0
         limit_val_batches = 0
+        check_val_every_n_epoch = None
+        val_check_interval = None
         logger.info("No validation set available, disabling validation")
     else:
         num_sanity_val_steps = 1
         limit_val_batches = 1.0
+        # Validate every "epoch" (every steps_per_epoch steps)
+        check_val_every_n_epoch = None
+        val_check_interval = steps_per_epoch
+        logger.info(f"Validation every {steps_per_epoch} steps")
     
     trainer = pl.Trainer(
-        max_epochs=epochs,
+        max_steps=max_steps,  # Train for fixed number of steps (not epochs)
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=devices,
         precision=precision,
@@ -369,9 +413,15 @@ def train_mae_cp(
         default_root_dir=str(output_path),
         num_sanity_val_steps=num_sanity_val_steps,
         limit_val_batches=limit_val_batches,
+        val_check_interval=val_check_interval,
+        check_val_every_n_epoch=check_val_every_n_epoch,
         log_every_n_steps=10,
         enable_checkpointing=True,
     )
+    
+    logger.info(f"Trainer configured:")
+    logger.info(f"  - Max steps: {max_steps}")
+    logger.info(f"  - Validation every: {val_check_interval} steps" if val_check_interval else "  - Validation: disabled")
     
     # Train
     logger.info("Starting training...")
@@ -413,6 +463,8 @@ if __name__ == "__main__":
                        help="Batch size")
     parser.add_argument("--epochs", type=int, default=100,
                        help="Number of epochs")
+    parser.add_argument("--steps_per_epoch", type=int, default=16,
+                       help="Steps per epoch (like DINOv3 OFFICIAL_EPOCH_LENGTH)")
     parser.add_argument("--lr", type=float, default=1.5e-4,
                        help="Learning rate")
     parser.add_argument("--weight_decay", type=float, default=0.05,
