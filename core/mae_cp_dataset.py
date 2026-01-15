@@ -61,10 +61,24 @@ class MAE_CPDataset(Dataset):
         # Get image and label from CPDataset
         image, label = self.cp_dataset[idx]
         
+        # Handle label: ensure it's a scalar, not an array
+        if label is not None:
+            # Convert numpy arrays or tensors to scalar
+            if hasattr(label, 'item'):
+                label = label.item()  # Works for both numpy and torch
+            elif hasattr(label, '__len__') and len(label) == 1:
+                label = label[0]
+            elif hasattr(label, 'squeeze'):
+                label = label.squeeze()
+                if hasattr(label, 'item'):
+                    label = label.item()
+        else:
+            label = -1
+        
         # Create dictionary
         sample = {
             "image": image,
-            "label": label if label is not None else -1,
+            "label": label,
         }
         
         # Apply transform if provided
