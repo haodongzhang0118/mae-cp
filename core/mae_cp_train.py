@@ -367,6 +367,8 @@ def train_mae_cp(
     )
     
     # Create online linear probe for monitoring
+    # Note: metrics must specify 'train' and 'val' keys explicitly
+    # If only dict is provided, metrics are only used for validation
     linear_probe = spt.callbacks.OnlineProbe(
         module,
         name="linear_probe",
@@ -375,21 +377,41 @@ def train_mae_cp(
         probe=torch.nn.Linear(hidden_dim, num_classes),
         loss_fn=torch.nn.CrossEntropyLoss(),
         metrics={
-            "top1": torchmetrics.classification.MulticlassAccuracy(num_classes),
+            "train": {
+                "top1": torchmetrics.classification.MulticlassAccuracy(num_classes, num_classes=num_classes),
+            },
+            "val": {
+                "top1": torchmetrics.classification.MulticlassAccuracy(num_classes, num_classes=num_classes),
+            },
         },
         optimizer={"type": "SGD", "lr": 0.1, "momentum": 0.9},
     )
     
+    # Remove None values from metrics
+    if linear_probe.metrics["train"]["top5"] is None:
+        del linear_probe.metrics["train"]["top5"]
+    if linear_probe.metrics["val"]["top5"] is None:
+        del linear_probe.metrics["val"]["top5"]
+    
     # Create callbacks
     callbacks = [
         linear_probe,
-        spt.callbacks.RankMe(
-            name="rankme", 
-            target="embedding",
-            queue_length=8192,
-            target_shape=hidden_dim,
-        ),
     ]
+    
+    # RankMe only works with validation data (computes on on_validation_batch_end)
+    # Only add it if we have validation data
+    if val_loader is not None:
+        callbacks.append(
+            spt.callbacks.RankMe(
+                name="rankme", 
+                target="embedding",
+                queue_length=8192,
+                target_shape=hidden_dim,
+            )
+        )
+        logger.info("Added RankMe callback (requires validation data)")
+    else:
+        logger.info("Skipping RankMe callback (no validation data available)")
     
     # Create logger
     if use_wandb:
