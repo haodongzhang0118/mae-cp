@@ -279,7 +279,10 @@ def train_mae_cp(
             shuffle=False,
             pin_memory=True,
         )
+        val_batches = len(val_loader)
         logger.info(f"✓ Validation dataset loaded: {len(val_dataset)} samples")
+        logger.info(f"  - Validation batches: {val_batches} (batch_size={batch_size})")
+        logger.info(f"  - Will run validation every epoch")
     except Exception as e:
         logger.warning(f"No validation set available: {e}")
         val_loader = None
@@ -463,9 +466,15 @@ def train_mae_cp(
         limit_val_batches = 0
         logger.info("No validation set available, disabling validation")
     else:
-        num_sanity_val_steps = 1
-        limit_val_batches = 1.0
-        logger.info(f"Validation enabled, running every epoch")
+        num_sanity_val_steps = 0  # Skip sanity check to save time
+        limit_val_batches = 1.0    # Run full validation set
+        logger.info("=" * 60)
+        logger.info("Validation Configuration:")
+        logger.info(f"  - num_sanity_val_steps: {num_sanity_val_steps}")
+        logger.info(f"  - limit_val_batches: {limit_val_batches} (1.0 = full validation set)")
+        logger.info(f"  - Validation will run at the end of each epoch")
+        logger.info(f"  - KNN and RankMe use queue-cached data (size=8192)")
+        logger.info("=" * 60)
     
     # Create trainer with epoch-based training
     # Each epoch = steps_per_epoch steps (controlled by DataLoader length)
