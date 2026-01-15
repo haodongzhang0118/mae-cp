@@ -118,6 +118,7 @@ def create_infinite_dataloader(
     drop_last: bool = True,
     pin_memory: bool = True,
     collate_fn=None,
+    num_samples: int = None,
 ):
     """
     Create a DataLoader with infinite sampling.
@@ -133,17 +134,26 @@ def create_infinite_dataloader(
         drop_last: Whether to drop last incomplete batch
         pin_memory: Whether to pin memory
         collate_fn: Optional collate function
+        num_samples: Total number of samples to draw per epoch (if None, uses dataset size)
+                     Use this when dataset_size < batch_size to ensure non-zero batches
         
     Returns:
         DataLoader with infinite sampler
     """
-    sampler = InfiniteSampler(
+    infinite_sampler = InfiniteSampler(
         dataset_size=len(dataset),
         shuffle=shuffle,
         seed=seed,
         rank=rank,
         world_size=world_size,
     )
+    
+    # If num_samples specified, use FiniteSubsetSampler to limit samples per epoch
+    # This is crucial for PyTorch Lightning to recognize non-zero batch count
+    if num_samples is not None:
+        sampler = FiniteSubsetSampler(infinite_sampler, num_samples)
+    else:
+        sampler = infinite_sampler
     
     dataloader = torch.utils.data.DataLoader(
         dataset=dataset,

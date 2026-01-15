@@ -240,6 +240,9 @@ def train_mae_cp(
     
     # Create training dataloader with InfiniteSampler
     # This allows training with fixed steps regardless of dataset size
+    # num_samples: total samples needed = max_steps * batch_size
+    num_samples_needed = max_steps * batch_size
+    
     train_loader = create_infinite_dataloader(
         dataset=train_dataset,
         batch_size=batch_size,
@@ -250,9 +253,13 @@ def train_mae_cp(
         world_size=1,
         drop_last=True,
         pin_memory=True,
+        num_samples=num_samples_needed,  # Specify total samples for fixed iteration count
     )
     
     logger.info(f"Created infinite dataloader for training")
+    logger.info(f"  - Total samples per training: {num_samples_needed}")
+    logger.info(f"  - Batches per training: {max_steps}")
+    logger.info(f"  - Dataset will cycle {num_samples_needed / dataset_size:.1f}x")
     
     # Validation loader (if available)
     try:
