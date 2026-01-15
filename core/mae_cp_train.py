@@ -429,7 +429,7 @@ def train_mae_cp(
         default_root_dir=str(output_path),
         num_sanity_val_steps=num_sanity_val_steps,
         limit_val_batches=limit_val_batches,
-        log_every_n_steps=steps_per_epoch, 
+        log_every_n_steps=1, 
         enable_checkpointing=True,
     )
     
