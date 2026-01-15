@@ -41,12 +41,16 @@ class MAE_CPDataset(Dataset):
         self.limit_data = limit_data
         self.transform = transform
         
+        # Convert None to -1 for CPDataset compatibility
+        # CPDataset uses -1 to mean "no limit", but MAE_CPDataset uses None
+        cp_limit_data = limit_data if limit_data is not None else -1
+        
         # Create underlying CPDataset (without transform, we'll apply it here)
         self.cp_dataset = CPDataset(
             dataset_name=dataset_name,
             root=root,
             split=split,
-            limit_data=limit_data,
+            limit_data=cp_limit_data,
             transform=None,  # We'll apply transform manually
             target_transform=None,
         )

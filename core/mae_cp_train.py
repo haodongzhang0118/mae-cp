@@ -269,6 +269,7 @@ def train_mae_cp(
             dataset_name=dataset_name,
             root=data_root,
             split="VAL",
+            limit_data=None,  # Don't limit validation data
             transform=val_transform,
         )
         val_loader = torch.utils.data.DataLoader(
@@ -278,7 +279,7 @@ def train_mae_cp(
             shuffle=False,
             pin_memory=True,
         )
-        logger.info(f"Validation dataset size: {len(val_dataset)}")
+        logger.info(f"✓ Validation dataset loaded: {len(val_dataset)} samples")
     except Exception as e:
         logger.warning(f"No validation set available: {e}")
         val_loader = None
@@ -378,10 +379,10 @@ def train_mae_cp(
         loss_fn=torch.nn.CrossEntropyLoss(),
         metrics={
             "train": {
-                "top1": torchmetrics.classification.MulticlassAccuracy(num_classes, num_classes=num_classes),
+                "top1": torchmetrics.classification.MulticlassAccuracy(num_classes),
             },
             "val": {
-                "top1": torchmetrics.classification.MulticlassAccuracy(num_classes, num_classes=num_classes),
+                "top1": torchmetrics.classification.MulticlassAccuracy(num_classes),
             },
         },
         optimizer={"type": "SGD", "lr": 0.1, "momentum": 0.9},
