@@ -337,8 +337,10 @@ def train_mae_cp(
             },
             "scheduler": {
                 "type": "LinearWarmupCosineAnnealing",
-                "warmup_epochs": warmup_epochs,
-                "max_epochs": epochs,
+                "total_steps": max_steps,      # Use calculated max_steps
+                "peak_step": warmup_steps,     # Warmup for this many steps
+                "start_factor": 0.01,          # Start at 1% of lr
+                "end_lr": 0.0,                 # End at 0
             },
             "interval": "step",  # Step-based scheduling (not epoch-based)
         },
