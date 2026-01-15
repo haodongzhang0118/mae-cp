@@ -385,9 +385,7 @@ def train_mae_cp(
         mask_ratio=mask_ratio,
     )
     
-    # Create online linear probe for monitoring
-    # Note: metrics must specify 'train' and 'val' keys explicitly
-    # If only dict is provided, metrics are only used for validation
+    # Create online linear probe for monitoring with comprehensive metrics
     linear_probe = spt.callbacks.OnlineProbe(
         module,
         name="linear_probe",
@@ -396,12 +394,9 @@ def train_mae_cp(
         probe=torch.nn.Linear(hidden_dim, num_classes),
         loss_fn=torch.nn.CrossEntropyLoss(),
         metrics={
-            "train": {
-                "top1": torchmetrics.classification.MulticlassAccuracy(num_classes),
-            },
-            "val": {
-                "top1": torchmetrics.classification.MulticlassAccuracy(num_classes),
-            },
+            "acc": torchmetrics.classification.MulticlassAccuracy(num_classes),
+            "f1": torchmetrics.classification.MulticlassF1Score(num_classes, average="macro"),
+            "auroc": torchmetrics.classification.MulticlassAUROC(num_classes, average="macro"),
         },
         optimizer={"type": "SGD", "lr": 0.1, "momentum": 0.9},
     )
@@ -411,9 +406,9 @@ def train_mae_cp(
         linear_probe,
     ]
     
-    # RankMe only works with validation data (computes on on_validation_batch_end)
-    # Only add it if we have validation data
+    # Add validation-only callbacks if validation data is available
     if val_loader is not None:
+        # RankMe: monitors effective rank of embeddings
         callbacks.append(
             spt.callbacks.RankMe(
                 name="rankme", 
@@ -422,9 +417,29 @@ def train_mae_cp(
                 target_shape=hidden_dim,
             )
         )
-        logger.info("Added RankMe callback (requires validation data)")
+        
+        # KNN: K-Nearest Neighbors evaluation with comprehensive metrics
+        callbacks.append(
+            spt.callbacks.OnlineKNN(
+                name="knn",
+                input="embedding",
+                target="label",
+                queue_length=8192,
+                metrics={
+                    "acc": torchmetrics.classification.MulticlassAccuracy(num_classes),
+                    "f1": torchmetrics.classification.MulticlassF1Score(num_classes, average="macro"),
+                    "auroc": torchmetrics.classification.MulticlassAUROC(num_classes, average="macro"),
+                },
+                input_dim=hidden_dim,
+                k=5,  # Use 5 nearest neighbors
+                temperature=0.07,
+                distance_metric="cosine",  # Cosine similarity for embeddings
+            )
+        )
+        
+        logger.info("✓ Added validation callbacks: RankMe + KNN (acc, f1, auroc)")
     else:
-        logger.info("Skipping RankMe callback (no validation data available)")
+        logger.info("⚠ Skipping validation callbacks (no validation data available)")
     
     # Create logger
     if use_wandb:
