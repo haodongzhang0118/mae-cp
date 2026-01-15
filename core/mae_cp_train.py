@@ -488,8 +488,10 @@ def train_mae_cp(
         default_root_dir=str(output_path),
         num_sanity_val_steps=num_sanity_val_steps,
         limit_val_batches=limit_val_batches,
-        log_every_n_steps=0, 
+        log_every_n_steps=1,  # Log every step to see progress
         enable_checkpointing=True,
+        enable_progress_bar=True,  # Ensure progress bar is shown
+        enable_model_summary=True,  # Show model summary
     )
     
     logger.info(f"Trainer configured:")
