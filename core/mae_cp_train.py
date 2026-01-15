@@ -317,19 +317,27 @@ def train_mae_cp(
         )
     
     # Get number of classes for probing
-    sample = train_dataset[0]
-    # Convert labels to scalars (handle numpy arrays)
-    labels = []
-    for i in range(min(1000, len(train_dataset))):
-        label = train_dataset[i]["label"]
-        # Handle numpy array labels
-        if hasattr(label, 'item'):
-            label = label.item()
-        elif hasattr(label, '__len__') and len(label) == 1:
-            label = label[0]
-        labels.append(label)
-    num_classes = len(set(labels))
-    logger.info(f"Detected {num_classes} classes")
+    # IMPORTANT: Use num_classes from dataset stats, NOT from actual samples!
+    # With limit_data, samples may not cover all classes, causing index errors
+    num_classes = dataset_stats.get("num_classes", None)
+    
+    if num_classes is None:
+        # Fallback: infer from samples (only if stats not available)
+        logger.warning("num_classes not in dataset_stats, inferring from samples...")
+        labels = []
+        for i in range(min(1000, len(train_dataset))):
+            label = train_dataset[i]["label"]
+            # Handle numpy array labels
+            if hasattr(label, 'item'):
+                label = label.item()
+            elif hasattr(label, '__len__') and len(label) == 1:
+                label = label[0]
+            labels.append(label)
+        num_classes = len(set(labels))
+        logger.warning(f"Inferred {num_classes} classes from {len(labels)} samples")
+        logger.warning("This may be incorrect with limit_data!")
+    else:
+        logger.info(f"Using num_classes={num_classes} from dataset stats")
     
     # Create module
     module = spt.Module(
