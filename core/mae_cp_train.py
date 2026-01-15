@@ -420,7 +420,7 @@ def train_mae_cp(
     # Create trainer with epoch-based training
     # Each epoch = steps_per_epoch steps (controlled by DataLoader length)
     trainer = pl.Trainer(
-        max_epochs=epochs,  # Train for specified number of epochs
+        max_epochs=epochs, 
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=devices,
         precision=precision,
@@ -429,7 +429,7 @@ def train_mae_cp(
         default_root_dir=str(output_path),
         num_sanity_val_steps=num_sanity_val_steps,
         limit_val_batches=limit_val_batches,
-        log_every_n_steps=10,
+        log_every_n_steps=steps_per_epoch, 
         enable_checkpointing=True,
     )
     
