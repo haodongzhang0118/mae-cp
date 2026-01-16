@@ -432,7 +432,7 @@ def train_mae_cp(
     if val_loader is not None:
         checkpoint_best_f1 = ModelCheckpoint(
             dirpath=str(output_path),
-            filename="best_f1-{epoch:02d}-{eval/linear_probe_f1_epoch:.4f}",
+            filename=f"best_f1",  # Don't include metric value in filename to avoid "/" issues
             monitor="eval/linear_probe_f1_epoch",
             mode="max",
             save_top_k=1,  # Keep only the best model
@@ -440,7 +440,7 @@ def train_mae_cp(
             save_last=False,
         )
         callbacks.append(checkpoint_best_f1)
-        logger.info("✓ Checkpoint: Saving best F1 → best_f1-*.ckpt (monitor: eval/linear_probe_f1_epoch)")
+        logger.info("✓ Checkpoint: Saving best F1 → best_f1.ckpt (monitor: eval/linear_probe_f1_epoch)")
     
     # Add validation-only callbacks if validation data is available
     if val_loader is not None:
