@@ -34,9 +34,9 @@ DATA_ROOT="/root/data"
 # Dataset and sample size configurations
 # Format: "dataset_name:num_classes"
 DATASETS=(
-    "food101:101"
-    "fgvc_aircraft:100"
     "galaxy10_decals:10"
+    "fgvc_aircraft:100"
+    "food101:101"
     "bloodmnist:8"
     "pathmnist:9"
     "dermamnist:7"
