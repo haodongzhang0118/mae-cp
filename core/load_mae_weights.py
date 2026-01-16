@@ -315,23 +315,3 @@ PRETRAINED_MODELS = {
     "mae_vit_huge_patch14": "facebook/vit-mae-huge",
 }
 
-
-if __name__ == "__main__":
-    # Test loading
-    import sys
-    sys.path.append("/Users/zhanghaodong/Desktop/DIET-CP/DINOv3-CP/dinov3/stable-pretraining")
-    
-    import stable_pretraining as spt
-    
-    # Create MAE model
-    mae_model = spt.backbone.mae.vit_base_patch16_dec512d8b()
-    
-    # Load pretrained weights
-    load_pretrained_mae_weights(
-        mae_model,
-        source="facebook/vit-mae-base",
-        strict=False
-    )
-    
-    print("✓ Successfully loaded MAE pretrained weights!")
-

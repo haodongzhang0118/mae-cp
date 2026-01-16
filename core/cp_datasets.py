@@ -305,7 +305,7 @@ DATASET_STATS = {
     "galaxy10_decals": {
         "mean": (0.097, 0.097, 0.097),
         "std": (0.174, 0.164, 0.156),
-        "input_size": 256,
+        "input_size": 224,  # Changed from 256 to match MAE pretrained size
         "is_rgb": True,
         "num_classes": 10,
     },
