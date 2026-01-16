@@ -366,7 +366,7 @@ def train_mae_cp(
     module = spt.Module(
         backbone=backbone,
         forward=mae_cp_forward,
-        hparams=hparams,  # Add hyperparameters for logging
+        hparams=hparams, 
         optim={
             "optimizer": {
                 "type": "AdamW",
@@ -422,24 +422,23 @@ def train_mae_cp(
         )
         
         # KNN: K-Nearest Neighbors evaluation with comprehensive metrics
-        callbacks.append(
-            spt.callbacks.OnlineKNN(
-                name="knn",
-                input="embedding",
-                target="label",
-                queue_length=8192,
-                metrics={
-                    "acc": torchmetrics.classification.MulticlassAccuracy(num_classes),
-                    "f1": torchmetrics.classification.MulticlassF1Score(num_classes, average="macro"),
-                    "auroc": torchmetrics.classification.MulticlassAUROC(num_classes, average="macro"),
-                },
-                input_dim=hidden_dim,
-                k=5,  # Use 5 nearest neighbors
-                temperature=0.07,
-                distance_metric="cosine",  # Cosine similarity for embeddings
-            )
-        )
-        
+        # callbacks.append(
+        #     spt.callbacks.OnlineKNN(
+        #         name="knn",
+        #         input="embedding",
+        #         target="label",
+        #         queue_length=8192,
+        #         metrics={
+        #             "acc": torchmetrics.classification.MulticlassAccuracy(num_classes),
+        #             "f1": torchmetrics.classification.MulticlassF1Score(num_classes, average="macro"),
+        #             "auroc": torchmetrics.classification.MulticlassAUROC(num_classes, average="macro"),
+        #         },
+        #         input_dim=hidden_dim,
+        #         k=5,  # Use 5 nearest neighbors
+        #         temperature=0.07,
+        #         distance_metric="cosine",  # Cosine similarity for embeddings
+        #     )
+        # )
         logger.info("✓ Added validation callbacks: RankMe + KNN (acc, f1, auroc)")
     else:
         logger.info("⚠ Skipping validation callbacks (no validation data available)")
