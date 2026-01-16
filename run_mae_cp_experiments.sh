@@ -2,23 +2,22 @@
 
 # MAE Continue Pretraining (MAE-CP) Batch Experiments
 # This script runs MAE-CP across multiple datasets and sample sizes
-# Similar to DINOv3-CP run_all_experiments.txt
 
 set -e  # Exit on error
 
 # Configuration
-export HF_TOKEN="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # Replace with your token
+export HF_TOKEN="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 export HUGGINGFACE_HUB_TOKEN="${HF_TOKEN}"
 
 # Hardware configuration
 NUM_GPUS=1
 NUM_WORKERS=8
-PRECISION="16-mixed"
+PRECISION="32"
 
-# Training configuration (matching DINOv3-CP)
+# Training configuration
 EPOCHS=100
-STEPS_PER_EPOCH=16  # OFFICIAL_EPOCH_LENGTH (like DINOv3-CP)
-BATCH_SIZE=256
+STEPS_PER_EPOCH=16 
+BATCH_SIZE=64
 LR=1.5e-4
 WEIGHT_DECAY=0.05
 WARMUP_EPOCHS=10
@@ -29,7 +28,7 @@ PRETRAINED_SOURCE="facebook/vit-mae-base"
 MASK_RATIO=0.75
 
 # Output directory
-OUTPUT_DIR="/root/output/mae_cp"
+OUTPUT_DIR="/root/output"
 DATA_ROOT="/root/data"
 
 # Dataset and sample size configurations
@@ -146,7 +145,6 @@ for dataset in "${DATASETS[@]}"; do
             echo "✓ Success"
         else
             echo "✗ Failed: $dataset with $sample_size samples"
-            # Continue with next experiment instead of stopping
         fi
     done
 done
