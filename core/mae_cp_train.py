@@ -181,6 +181,13 @@ def train_mae_cp(
         limit_str = f"_{limit_data}" if limit_data else "_full"
         exp_name = f"{dataset_name}_{model_size}{limit_str}"
     
+    # Validate warmup_epochs
+    if warmup_epochs >= epochs:
+        raise ValueError(
+            f"warmup_epochs ({warmup_epochs}) must be less than epochs ({epochs}). "
+            f"Recommended: warmup_epochs <= epochs / 10 (e.g., warmup_epochs={max(1, epochs // 10)})"
+        )
+    
     # Calculate training steps (like DINOv3-CP)
     max_steps = epochs * steps_per_epoch
     warmup_steps = warmup_epochs * steps_per_epoch
@@ -546,7 +553,7 @@ if __name__ == "__main__":
     parser.add_argument("--weight_decay", type=float, default=0.05,
                        help="Weight decay")
     parser.add_argument("--warmup_epochs", type=int, default=10,
-                       help="Warmup epochs")
+                       help="Warmup epochs (default: 1, must be < epochs)")
     
     # Hardware parameters
     parser.add_argument("--num_workers", type=int, default=8,

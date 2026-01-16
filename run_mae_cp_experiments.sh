@@ -109,6 +109,7 @@ run_experiment() {
         --precision "$PRECISION" \
         --devices "$NUM_GPUS" \
         --output_dir "$OUTPUT_DIR" \
+        --use_wandb \
         --exp_name "$EXP_NAME"
     
     echo "✓ Completed: $EXP_NAME"
