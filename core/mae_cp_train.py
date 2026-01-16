@@ -12,6 +12,7 @@ import logging
 
 import stable_pretraining as spt
 from stable_pretraining.data import transforms
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from pathlib import Path
 from mae_cp_dataset import MAE_CPDataset
@@ -415,6 +416,31 @@ def train_mae_cp(
     callbacks = [
         linear_probe,
     ]
+    
+    # Checkpoint 1: Save the last checkpoint (most recent)
+    checkpoint_last = ModelCheckpoint(
+        dirpath=str(output_path),
+        filename="last",
+        save_last=True,
+        save_top_k=0,  # Don't save top-k for this callback
+        verbose=True,
+    )
+    callbacks.append(checkpoint_last)
+    logger.info("✓ Checkpoint: Saving last checkpoint → last.ckpt")
+    
+    # Checkpoint 2: Save best model based on linear_probe F1 score (if validation available)
+    if val_loader is not None:
+        checkpoint_best_f1 = ModelCheckpoint(
+            dirpath=str(output_path),
+            filename="best_f1-{epoch:02d}-{eval/linear_probe_f1_epoch:.4f}",
+            monitor="eval/linear_probe_f1_epoch",
+            mode="max",
+            save_top_k=1,  # Keep only the best model
+            verbose=True,
+            save_last=False,
+        )
+        callbacks.append(checkpoint_best_f1)
+        logger.info("✓ Checkpoint: Saving best F1 → best_f1-*.ckpt (monitor: eval/linear_probe_f1_epoch)")
     
     # Add validation-only callbacks if validation data is available
     if val_loader is not None:
