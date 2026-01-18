@@ -25,7 +25,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
 sys.path.insert(0, str(Path(__file__).parent))
 
 import stable_pretraining as spt
-from mae_cp_dataset import MAE_CPDataset, create_mae_cp_transforms
+from stable_pretraining.data import transforms
+from mae_cp_dataset import MAE_CPDataset
 from load_mae_weights import load_pretrained_mae_weights
 from cp_datasets import DATASET_STATS
 from metrics import zero_shot_eval  # Use shared evaluation functions
@@ -159,11 +160,25 @@ def create_dataloaders(
     if dataset_stats is None:
         raise ValueError(f"Unknown dataset: {dataset_name}")
     
-    # Create transforms
-    transform = create_mae_cp_transforms(
-        input_size=dataset_stats["input_size"],
-        is_rgb=dataset_stats["is_rgb"],
-        is_train=False,  # Use test-time transforms for evaluation
+    # Create evaluation transforms (without augmentation)
+    mean = dataset_stats.get("mean", [0.485, 0.456, 0.406])
+    std = dataset_stats.get("std", [0.229, 0.224, 0.225])
+    input_size = dataset_stats.get("input_size", 224)
+    is_rgb = dataset_stats.get("is_rgb", True)
+    
+    # For grayscale images, replicate single-channel stats
+    if not is_rgb:
+        if len(mean) == 1:
+            mean = [mean[0]] * 3
+        if len(std) == 1:
+            std = [std[0]] * 3
+    
+    # Evaluation transform (no augmentation, just center crop)
+    transform = transforms.Compose(
+        transforms.RGB(),
+        transforms.Resize((int(input_size * 1.14), int(input_size * 1.14))),
+        transforms.CenterCrop((input_size, input_size)),
+        transforms.ToImage(mean=mean, std=std),
     )
     
     # Create datasets
