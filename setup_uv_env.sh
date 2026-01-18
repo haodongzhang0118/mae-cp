@@ -58,4 +58,3 @@ echo "🎯 Usage:"
 echo "  Activate environment:"
 echo "  source .venv/bin/activate"
 echo ""
-

@@ -43,7 +43,7 @@ from typing import Dict, List, Tuple
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from test_mae_cp import test_mae_cp, set_seed
+from test_mae_cp import test_mae_cp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -127,10 +127,10 @@ def collect_metrics(
     probe_data_size: int = 1000,
     model_size: str = "base",
     checkpoint_type: str = "best_f1",
-    batch_size: int = 128,
-    num_workers: int = 8,
+    batch_size: int = 256,
+    probe_lr: float = 1e-3,
+    probe_steps: int = 10000,
     device: str = "cuda",
-    seed: int = 42,
 ) -> pd.DataFrame:
     """
     Collect metrics for all datasets and CP sizes.
@@ -142,9 +142,9 @@ def collect_metrics(
         model_size: Model size
         checkpoint_type: Which checkpoint to use ('best_f1' or 'last')
         batch_size: Batch size for evaluation
-        num_workers: Number of data loading workers
+        probe_lr: Learning rate for linear probe
+        probe_steps: Training steps for linear probe
         device: Device
-        seed: Random seed
         
     Returns:
         DataFrame with all metrics
@@ -173,19 +173,17 @@ def collect_metrics(
         )
         logger.info("=" * 80)
         
-        set_seed(seed)
-        
         try:
             baseline_results = test_mae_cp(
                 checkpoint_path=None,  # Baseline pretrained MAE
                 dataset_name=dataset_name,
                 data_root=data_root,
-                probe_data_size=probe_data_size,
+                limit_data=probe_data_size,
                 model_size=model_size,
                 batch_size=batch_size,
-                num_workers=num_workers,
+                probe_lr=probe_lr,
+                probe_steps=probe_steps,
                 device=device,
-                seed=seed,
             )
             
             # Store baseline
@@ -220,19 +218,17 @@ def collect_metrics(
             logger.info(f"Checkpoint: {ckpt_path}")
             logger.info("=" * 80)
             
-            set_seed(seed)
-            
             try:
                 cp_results = test_mae_cp(
                     checkpoint_path=ckpt_path,
                     dataset_name=dataset_name,
                     data_root=data_root,
-                    probe_data_size=probe_data_size,
+                    limit_data=probe_data_size,
                     model_size=model_size,
                     batch_size=batch_size,
-                    num_workers=num_workers,
+                    probe_lr=probe_lr,
+                    probe_steps=probe_steps,
                     device=device,
-                    seed=seed,
                 )
                 
                 # Store CP results
@@ -329,26 +325,26 @@ def main():
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=128,
+        default=256,
         help="Batch size for evaluation",
     )
     parser.add_argument(
-        "--num_workers",
+        "--probe_lr",
+        type=float,
+        default=1e-3,
+        help="Learning rate for linear probe",
+    )
+    parser.add_argument(
+        "--probe_steps",
         type=int,
-        default=8,
-        help="Number of data loading workers",
+        default=10000,
+        help="Training steps for linear probe",
     )
     parser.add_argument(
         "--device",
         type=str,
         default="cuda",
         help="Device (cuda or cpu)",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed",
     )
     parser.add_argument(
         "--output_csv",
@@ -368,9 +364,9 @@ def main():
         model_size=args.model_size,
         checkpoint_type=args.checkpoint_type,
         batch_size=args.batch_size,
-        num_workers=args.num_workers,
+        probe_lr=args.probe_lr,
+        probe_steps=args.probe_steps,
         device=args.device,
-        seed=args.seed,
     )
     
     if df.empty:
