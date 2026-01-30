@@ -25,6 +25,8 @@ WARMUP_EPOCHS=10
 # Model configuration
 MODEL_SIZE="base"  # Options: base, large, huge
 PRETRAINED_SOURCE="facebook/vit-mae-base"
+ENCODER_ONLY=false  # Set to true to only load encoder weights
+TRAINABLE_BLOCKS="full"  # Number of trainable blocks or "full" to train all
 MASK_RATIO=0.75
 
 # Output directory
@@ -77,6 +79,13 @@ run_experiment() {
         exp_suffix="${limit_data}"
     fi
     
+    # Set encoder_only flag
+    if [ "$ENCODER_ONLY" = "true" ]; then
+        encoder_only_arg="--encoder_only"
+    else
+        encoder_only_arg=""
+    fi
+    
     # Experiment name
     EXP_NAME="${dataset_name}_mae${MODEL_SIZE}_${exp_suffix}"
     
@@ -96,6 +105,8 @@ run_experiment() {
         --model_size "$MODEL_SIZE" \
         --pretrained \
         --pretrained_source "$PRETRAINED_SOURCE" \
+        $encoder_only_arg \
+        --trainable_blocks "$TRAINABLE_BLOCKS" \
         --mask_ratio "$MASK_RATIO" \
         --batch_size "$BATCH_SIZE" \
         --epochs "$EPOCHS" \

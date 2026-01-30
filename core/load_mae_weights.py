@@ -250,11 +250,31 @@ def load_mae_from_official_checkpoint(
     return state_dict
 
 
+def check_decoder_weights_available(state_dict: Dict[str, torch.Tensor]) -> bool:
+    """
+    Check if decoder weights are present in the state dict.
+    
+    Args:
+        state_dict: Model state dictionary
+        
+    Returns:
+        True if decoder weights are present, False otherwise
+    """
+    decoder_keys = [k for k in state_dict.keys() if k.startswith("decoder")]
+    has_decoder = len(decoder_keys) > 0
+    
+    if has_decoder:
+        logger.info(f"✓ Decoder weights found in checkpoint ({len(decoder_keys)} parameters)")
+    else:
+        logger.warning("⚠ No decoder weights found in checkpoint")
+    
+    return has_decoder
+
+
 def load_pretrained_mae_weights(
     mae_model,
     source: str = "facebook/vit-mae-base",
-    load_encoder_only: bool = False,
-    load_decoder_only: bool = False,
+    encoder_only: bool = False,
     strict: bool = False,
 ) -> None:
     """
@@ -263,8 +283,7 @@ def load_pretrained_mae_weights(
     Args:
         mae_model: stable-pretraining MAE model instance
         source: Either HuggingFace model name or path to checkpoint file
-        load_encoder_only: If True, only load encoder weights
-        load_decoder_only: If True, only load decoder weights
+        encoder_only: If True, only load encoder weights (ignore decoder)
         strict: Whether to strictly enforce matching keys
     """
     # Determine source type
@@ -281,19 +300,29 @@ def load_pretrained_mae_weights(
             "or path to a checkpoint file."
         )
     
-    # Filter weights based on load options
-    if load_encoder_only:
+    # Check if decoder weights are available
+    has_decoder_weights = check_decoder_weights_available(state_dict)
+    
+    # Handle encoder_only flag
+    if encoder_only:
+        logger.info("encoder_only=True: Loading encoder weights only")
         state_dict = {
             k: v for k, v in state_dict.items() 
-            if not k.startswith("decoder")
+            if not k.startswith("decoder") and k != "mask_token"
         }
-        logger.info("Loading encoder weights only")
-    elif load_decoder_only:
-        state_dict = {
-            k: v for k, v in state_dict.items() 
-            if k.startswith("decoder") or k == "mask_token"
-        }
-        logger.info("Loading decoder weights only")
+    else:
+        # User wants to load full model, but check if decoder weights exist
+        if not has_decoder_weights:
+            logger.warning(
+                "⚠ WARNING: encoder_only=False but no decoder weights found in checkpoint!\n"
+                "  The checkpoint only contains encoder weights.\n"
+                "  Proceeding with encoder-only loading (decoder will be randomly initialized)."
+            )
+            # Filter to encoder only since decoder weights are not available
+            state_dict = {
+                k: v for k, v in state_dict.items() 
+                if not k.startswith("decoder") and k != "mask_token"
+            }
     
     # Load weights
     missing_keys, unexpected_keys = mae_model.load_state_dict(
@@ -301,11 +330,18 @@ def load_pretrained_mae_weights(
     )
     
     if missing_keys:
-        logger.warning(f"Missing keys: {missing_keys}")
+        logger.info(f"Missing keys (will be randomly initialized): {len(missing_keys)} parameters")
+        if len(missing_keys) <= 10:
+            for key in missing_keys:
+                logger.info(f"  - {key}")
+        else:
+            logger.info(f"  (showing first 10)")
+            for key in list(missing_keys)[:10]:
+                logger.info(f"  - {key}")
     if unexpected_keys:
         logger.warning(f"Unexpected keys: {unexpected_keys}")
     
-    logger.info("Successfully loaded pretrained MAE weights")
+    logger.info("✓ Successfully loaded pretrained MAE weights")
 
 
 # Available pretrained models

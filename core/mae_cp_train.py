@@ -68,6 +68,60 @@ def create_mae_cp_transforms(dataset_stats):
     return train_transform, val_transform
 
 
+def freeze_encoder_blocks(backbone, trainable_blocks):
+    """
+    Freeze encoder blocks, keeping only the last N blocks trainable.
+    
+    Args:
+        backbone: MAE model instance
+        trainable_blocks: Number of blocks to keep trainable (from the end)
+                         Can be "full" to train all blocks, or an integer
+                         
+    Returns:
+        Number of trainable blocks (int)
+    """
+    total_blocks = len(backbone.blocks)
+    
+    # Handle "full" case
+    if isinstance(trainable_blocks, str) and trainable_blocks.lower() == "full":
+        logger.info(f"trainable_blocks='full': Training all {total_blocks} encoder blocks")
+        return total_blocks
+    
+    # Convert to int
+    trainable_blocks = int(trainable_blocks)
+    
+    # Handle case where trainable_blocks > total_blocks
+    if trainable_blocks > total_blocks:
+        logger.warning(
+            f"⚠ WARNING: trainable_blocks ({trainable_blocks}) > total blocks ({total_blocks})!\n"
+            f"  Setting trainable_blocks='full' (training all {total_blocks} blocks)"
+        )
+        trainable_blocks = total_blocks
+    
+    # Calculate which blocks to freeze
+    num_frozen = total_blocks - trainable_blocks
+    
+    # Freeze early blocks
+    if num_frozen > 0:
+        logger.info(f"Freezing first {num_frozen} encoder blocks (training last {trainable_blocks} blocks)")
+        for i in range(num_frozen):
+            for param in backbone.blocks[i].parameters():
+                param.requires_grad = False
+            logger.info(f"  ✓ Frozen block {i}")
+    else:
+        logger.info(f"Training all {total_blocks} encoder blocks")
+    
+    # Also freeze patch_embed, cls_token, pos_embed if not training all blocks
+    if num_frozen > 0:
+        logger.info("Freezing patch embedding, cls_token, and pos_embed")
+        for param in backbone.patch_embed.parameters():
+            param.requires_grad = False
+        backbone.cls_token.requires_grad = False
+        backbone.pos_embed.requires_grad = False
+    
+    return trainable_blocks
+
+
 def mae_cp_forward(self, batch, stage):
     """
     Forward function for MAE-CP.
@@ -127,6 +181,8 @@ def train_mae_cp(
     model_size: str = "base",  # 'base', 'large', 'huge'
     pretrained: bool = True,
     pretrained_source: str = "facebook/vit-mae-base",
+    encoder_only: bool = False,  # NEW: Only load encoder weights
+    trainable_blocks: str = "full",  # NEW: Number of trainable blocks or "full"
     mask_ratio: float = 0.75,
     norm_pix_loss: bool = False,
     
@@ -161,6 +217,8 @@ def train_mae_cp(
         model_size: MAE model size ('base', 'large', 'huge')
         pretrained: Whether to load pretrained weights
         pretrained_source: Source of pretrained weights (HF model or checkpoint path)
+        encoder_only: Only load encoder weights (not decoder). Auto-detected if checkpoint lacks decoder.
+        trainable_blocks: Number of encoder blocks to train from the end, or "full" for all blocks (default: "full")
         mask_ratio: Ratio of patches to mask (0.75 = 75%)
         norm_pix_loss: Whether to normalize pixel values in loss
         batch_size: Training batch size
@@ -324,11 +382,16 @@ def train_mae_cp(
     # Load pretrained weights
     if pretrained:
         logger.info(f"Loading pretrained weights from {pretrained_source}")
+        logger.info(f"  encoder_only: {encoder_only}")
         load_pretrained_mae_weights(
             backbone,
             source=pretrained_source,
+            encoder_only=encoder_only,
             strict=False,
         )
+    
+    # Freeze encoder blocks if specified
+    actual_trainable_blocks = freeze_encoder_blocks(backbone, trainable_blocks)
     
     # Get number of classes for probing
     # IMPORTANT: Use num_classes from dataset stats, NOT from actual samples!
@@ -358,6 +421,9 @@ def train_mae_cp(
         "dataset": dataset_name,
         "model_size": model_size,
         "pretrained": pretrained,
+        "encoder_only": encoder_only,
+        "trainable_blocks": trainable_blocks,
+        "actual_trainable_blocks": actual_trainable_blocks,
         "limit_data": limit_data,
         "batch_size": batch_size,
         "epochs": epochs,
@@ -562,6 +628,10 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained_source", type=str,
                        default="facebook/vit-mae-base",
                        help="Source of pretrained weights")
+    parser.add_argument("--encoder_only", action="store_true",
+                       help="Only load encoder weights (not decoder)")
+    parser.add_argument("--trainable_blocks", type=str, default="full",
+                       help="Number of trainable encoder blocks from the end, or 'full' (default: 'full')")
     parser.add_argument("--mask_ratio", type=float, default=0.75,
                        help="Masking ratio")
     parser.add_argument("--norm_pix_loss", action="store_true",
